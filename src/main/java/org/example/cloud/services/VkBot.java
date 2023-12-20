@@ -2,20 +2,14 @@ package org.example.cloud.services;
 
 import api.longpoll.bots.LongPollBot;
 import api.longpoll.bots.exceptions.VkApiException;
-import api.longpoll.bots.methods.impl.docs.Save;
 import api.longpoll.bots.methods.impl.messages.Send;
-import api.longpoll.bots.methods.impl.photos.GetMessagesUploadServer;
 import api.longpoll.bots.methods.impl.upload.UploadDoc;
-import api.longpoll.bots.methods.impl.upload.UploadStory;
 import api.longpoll.bots.model.events.messages.MessageNew;
 import api.longpoll.bots.model.objects.additional.Image;
 import api.longpoll.bots.model.objects.additional.PhotoSize;
 import api.longpoll.bots.model.objects.additional.UploadedFile;
 import api.longpoll.bots.model.objects.basic.Message;
 import api.longpoll.bots.model.objects.basic.User;
-import api.longpoll.bots.model.objects.media.Attachment;
-import api.longpoll.bots.model.objects.media.Photo;
-import api.longpoll.bots.model.objects.media.Video;
 import io.awspring.cloud.sqs.annotation.SqsListener;
 import org.example.cloud.dto.BasicMessage;
 import org.example.cloud.dto.MediaContentType;
@@ -24,15 +18,10 @@ import org.example.cloud.repository.ChatsRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -108,7 +97,7 @@ public class VkBot extends LongPollBot {
             sendMessage = sendMessage
 //                    .addDoc(URI.create(message.getUrl()).toURL().getFile(), url.openStream())
                     .setMessage(hasText ? message.toString() : message.getFullname())
-                    .setAttachment(new UploadedFile("audio", savedDoc.getAudioMessage().getOwnerId(), savedDoc.getAudioMessage().getId(), null));
+                    .setAttachment(new UploadedFile("audio", savedDoc.getAudioMessage().getOwnerId(), savedDoc.getAudioMessage().getId(), savedDoc.getAudioMessage().getAccessKey()));
         } else if (message.getType() == MediaContentType.DOC) {
             URL url = URI.create(message.getUrl()).toURL();
             sendMessage = sendMessage
@@ -147,9 +136,11 @@ public class VkBot extends LongPollBot {
                             .execute();
                 } else if (message.getText().equalsIgnoreCase("/list_chats")) {
                     List<Long> telegramIds = chatsRepository.findTelegramChatByVkChat(message.getPeerId().longValue());
+                    String text = telegramIds.isEmpty() ? "No chats are synced" :
+                            telegramIds.stream().map(String::valueOf).collect(Collectors.joining("\n"));
                     vk.messages.send()
                             .setPeerId(message.getPeerId())
-                            .setMessage(telegramIds.stream().map(String::valueOf).collect(Collectors.joining("\n")))
+                            .setMessage(text)
                             .execute();
                 } else if (message.getText().startsWith("/unsync")) {
                     String[] args = message.getText().split(" ");
